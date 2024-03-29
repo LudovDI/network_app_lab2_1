@@ -15,10 +15,10 @@
 #define PORT 6789
 #define BUFFER_SIZE 1024
 
-void handle_client(SOCKET my_client_socket) {
+void handle_client(SOCKET clientSocket) {
     try {
         char buffer[BUFFER_SIZE];
-        int bytes_received = recv(my_client_socket, buffer, BUFFER_SIZE, 0);
+        int bytes_received = recv(clientSocket, buffer, BUFFER_SIZE, 0);
         if (bytes_received == SOCKET_ERROR) {
             throw "Error receiving data from client";
         }
@@ -30,51 +30,51 @@ void handle_client(SOCKET my_client_socket) {
 
         if (!file.is_open()) {
             std::string not_found_response = "HTTP/1.1 404 Not Found\r\n\r\nFile Not Found";
-            send(my_client_socket, not_found_response.c_str(), not_found_response.size(), 0);
+            send(clientSocket, not_found_response.c_str(), not_found_response.size(), 0);
         }
         else {
             std::string response_header = "HTTP/1.1 200 OK\r\n\r\n";
-            send(my_client_socket, response_header.c_str(), response_header.size(), 0);
+            send(clientSocket, response_header.c_str(), response_header.size(), 0);
             std::string line;
             while (std::getline(file, line)) {
-                send(my_client_socket, line.c_str(), line.size(), 0);
+                send(clientSocket, line.c_str(), line.size(), 0);
             }
             file.close();
         }
 
-        closesocket(my_client_socket);
+        closesocket(clientSocket);
     }
     catch (...) {
-        closesocket(my_client_socket);
+        closesocket(clientSocket);
     }
 }
 
 int main() {
-    WSADATA wsa_data;
-    SOCKET server_socket, client_socket;
-    struct sockaddr_in server_addr, client_addr;
-    int sin_size = sizeof(client_addr);
+    WSADATA wsaData;
+    SOCKET serverSocket, clientSocket;
+    struct sockaddr_in serverAddr, clientAddr;
+    int sin_size = sizeof(clientAddr);
 
-    if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cerr << "WSAStartup failed" << std::endl;
         return 1;
     }
 
-    if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
+    if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
         std::cerr << "Error creating socket" << std::endl;
         return 1;
     }
 
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(PORT);
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(PORT);
+    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if (bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR) {
+    if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
         std::cerr << "Error binding to socket" << std::endl;
         return 1;
     }
 
-    if (listen(server_socket, 5) == SOCKET_ERROR) {
+    if (listen(serverSocket, 5) == SOCKET_ERROR) {
         std::cerr << "Error listening on socket" << std::endl;
         return 1;
     }
@@ -82,18 +82,18 @@ int main() {
     std::cout << "Server is ready to accept connections." << std::endl;
 
     while (true) {
-        if ((client_socket = accept(server_socket, (struct sockaddr*)&client_addr, &sin_size)) == INVALID_SOCKET) {
+        if ((clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &sin_size)) == INVALID_SOCKET) {
             std::cerr << "Error accepting connection" << std::endl;
             continue;
         }
 
-        std::cout << "Connection established with " << inet_ntoa(client_addr.sin_addr) << std::endl;
+        std::cout << "Connection established with " << inet_ntoa(clientAddr.sin_addr) << std::endl;
 
-        std::thread client_thread(handle_client, client_socket);
+        std::thread client_thread(handle_client, clientSocket);
         client_thread.detach();
     }
 
-    closesocket(server_socket);
+    closesocket(serverSocket);
     WSACleanup();
     return 0;
 }
